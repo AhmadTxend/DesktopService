@@ -3,37 +3,52 @@ const { uIOhook, UiohookKey } = require('uiohook-napi');
 require('dotenv').config();
 const path = require('path');
 const os = require('os');
+const {formatDuration,formatTimestamp,getFormattedDate} = require('../utils/Format');
 
 
-const inactivityLogFilePath = path.resolve(__dirname, '../', process.env.INACTIVITY_LOG_FILE_PATH);
-const inactivityDuration = 5000; // 5 minute
+const inactivityDuration = 1* 60 * 1000; // 1 minute
+// const inactivityDuration = 5000; // 5 second
+
 
 let lastMouseMoveTime = Date.now(); // Track the last mouse move time
 let lastKeyPressTime = Date.now();  // Track the last key press time
 
 
+ 
+const getInactivityLogFilePath = () => {
+    const formattedDate = getFormattedDate();
+    return path.resolve(__dirname, `../Logs/inactivity_log_${formattedDate}.js`);
+};
+const inactivityLogFilePath = getInactivityLogFilePath();
+
 const loggedInUser = () => {
     const username = os.userInfo().username;
     return username;
 };
-// Check for keyboard inactivity
+
 const checkKeyInactivity = () => {
     if (Date.now() - lastKeyPressTime >= inactivityDuration) {
-        const username = loggedInUser();
-        const logEntry = `\nUser ${username} Inactive: Did not notice any key press for 5 minute`;
-        console.log('logEntry:',logEntry)
+        const logEntry = {
+            user: loggedInUser(),
+            event: "keyboard inactivity",
+            message: `Did not notice any key Press for ${formatDuration(inactivityDuration)}`,
+            timestamp: formatTimestamp(new Date()),
+        };
         logToFile(inactivityLogFilePath, logEntry);
         lastKeyPressTime = Date.now(); // Reset after logging to avoid repeated logs
     }
 };
 
-// Check for mouse inactivity
 const checkMouseInactivity = () => {
     if (Date.now() - lastMouseMoveTime >= inactivityDuration) {
-        const username = loggedInUser();
-        const logEntry = `\nUser ${username} Inactive: Did not notice any mouse movement for 5 minute`;
+        const logEntry = {
+            user: loggedInUser(),
+            event: "mouse inactivity",
+            message: `Did not notice any mouse movement for ${formatDuration(inactivityDuration)}`,
+            timestamp: formatTimestamp(new Date()),
+        };
         logToFile(inactivityLogFilePath, logEntry);
-        lastMouseMoveTime = Date.now(); // Reset after logging to avoid repeated logs
+        lastMouseMoveTime = Date.now(); // Reset after logging to avoid repeated logs     
     }
 };
 

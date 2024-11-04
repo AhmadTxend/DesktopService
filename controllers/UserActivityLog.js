@@ -9,8 +9,18 @@ const puppeteer = require('puppeteer');
 const { formatTime } = require('../utils/FormatTime');
 const { logToFile } = require('../controllers/FileLogging');
 
-const logFilePath = path.resolve(__dirname, '../', process.env.LOG_FILE_PATH);
 const screenshotDir = path.resolve(__dirname, '../', 'screenshots');
+const {formatTime,getFormattedDate,formatTimestamp} = require('../utils/Format');
+const {AppCategories} = require('../Enums/Categories');
+const {logToFile} = require('../controllers/FileLogging');
+
+// const logFilePath = path.resolve(__dirname, '../', process.env.LOG_FILE_PATH);
+const getActivityLogFilePath = () => {
+  const formattedDate = getFormattedDate();
+  return path.resolve(__dirname, `../Logs/activity_log_${formattedDate}.js`);
+};
+const logFilePath = getActivityLogFilePath();
+
 
 if (!fs.existsSync(screenshotDir)) {
     fs.mkdirSync(screenshotDir);
@@ -20,6 +30,19 @@ let lastWindow = null;
 let lastTabTitle = null; 
 let lastTabURL = null; 
 let lastSwitchTime = Date.now(); 
+
+const getAppCategory = (appName) => {
+  console.log('AppCategories:',AppCategories);
+  console.log('appName:',appName);
+
+  for (const [apps, category ] of Object.entries(AppCategories)) {
+  console.log('apps:',apps);
+      if (apps.includes(appName)) {
+          return category;
+      }
+  }
+  return "Uncategorized";
+};
 
 const logUserActivity = async () => {
     const currentTime = Date.now();
@@ -34,9 +57,20 @@ const logUserActivity = async () => {
         if (!lastWindow || window.id !== lastWindow.id) {
             if (lastWindow) {
                 const timeSpent = currentTime - lastSwitchTime; 
-                const durationLogEntry = `User: ${username}, TimeStamp: ${new Date(lastSwitchTime).toLocaleString()}, Application: ${lastWindow.owner.name}, Title: ${lastWindow.title}, Duration: ${formatTime(timeSpent)}\n`;
-                logToFile(logFilePath, durationLogEntry);
-                
+                const startTime = formatTimestamp(new Date(currentTime - timeSpent));
+                const appCategory = getAppCategory(lastWindow.owner.name);
+
+                const logEntry = {
+                  user: username,
+                  // timestamp: formatTimestamp(new Date()),
+                  application: lastWindow.owner.name,
+                  category: appCategory,
+                  title: lastWindow.title,
+                  duration: formatTime(timeSpent),
+                  startTime: startTime,
+                  endTime: formatTimestamp(new Date()),
+              };
+                logToFile(logFilePath, logEntry);                
                 captureScreenshot(lastWindow.title);
             }
 
@@ -46,17 +80,26 @@ const logUserActivity = async () => {
             lastSwitchTime = currentTime; 
         } 
         else if (currentTabTitle !== lastTabTitle || currentTabURL !== lastTabURL) { 
-            const tabLogEntry = `User: ${username}, TimeStamp: ${timestamp}, Application: ${window.owner.name}, Switched to Tab: ${currentTabTitle}, URL: ${currentTabURL}\n`;
-            logToFile(logFilePath, tabLogEntry);
-
+          const tabLogEntry = {
+            user: username,
+            timestamp: timestamp,  // Assuming `timestamp` is already formatted, if not, you can use `formatTimestamp(new Date())`
+            application: window.owner.name,
+            category: "browser",  // Set an appropriate category if you have this data
+            title: currentTabTitle,
+            url: currentTabURL,
+            startTime: lastSwitchTime,  // Start time from the last switch
+            endTime: currentTime,       // Current time for the end time
+        };     
+        
+        logToFile(logFilePath, JSON.stringify(tabLogEntry) + '\n');
             captureScreenshot(currentTabTitle);
 
             lastTabTitle = currentTabTitle;
             lastTabURL = currentTabURL; 
             lastSwitchTime = currentTime; 
         }
+      }
     }
-};
 
 const getCurrentTabURL = async () => {
     let url = '';
