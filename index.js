@@ -3,6 +3,9 @@
 const { logUserActivity } = require('./controllers/UserActivityLog');
 const { resetKeyInactivityTimer,resetMouseInactivityTimer,checkKeyInactivity,checkMouseInactivity } = require('./controllers/UserInActivityLog');
 
+
+
+  
 resetKeyInactivityTimer();
 resetMouseInactivityTimer();
 setInterval(checkKeyInactivity, 1000);   // Check keyboard inactivity every second

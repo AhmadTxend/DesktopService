@@ -3,40 +3,92 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const activeWin = require('active-win');
+const screenshot = require('screenshot-desktop');
+const puppeteer = require('puppeteer');
 
-const {formatTime} = require('../utils/FormatTime');
-const {logToFile} = require('../controllers/FileLogging');
+const { formatTime } = require('../utils/FormatTime');
+const { logToFile } = require('../controllers/FileLogging');
 
 const logFilePath = path.resolve(__dirname, '../', process.env.LOG_FILE_PATH);
+const screenshotDir = path.resolve(__dirname, '../', 'screenshots');
 
-let lastWindow = null;          // Stores last active window info
-let lastSwitchTime = Date.now(); // Stores timestamp when window changed
-let lastActivityTime = Date.now(); // Last user input activity time
-let isInactive = false;         // Flag to track inactivity
+if (!fs.existsSync(screenshotDir)) {
+    fs.mkdirSync(screenshotDir);
+}
 
+let lastWindow = null;  
+let lastTabTitle = null; 
+let lastTabURL = null; 
+let lastSwitchTime = Date.now(); 
 
-// Function to log user activity
 const logUserActivity = async () => {
-  const currentTime = Date.now();
-  const username = os.userInfo().username;
-  const timestamp = new Date().toLocaleString();  
-  const window = await activeWin();
+    const currentTime = Date.now();
+    const username = os.userInfo().username;
+    const timestamp = new Date().toLocaleString();
+    const window = await activeWin();
 
-  // Log time spent on previous window if it has changed
-  if (window && (!lastWindow || window.id !== lastWindow.id)) {
-    if (lastWindow) {
-      const timeSpent = currentTime - lastSwitchTime;
-      const logEntry = `User: ${username}, TimeStamp: ${timestamp} \nApplication: ${lastWindow.owner.name}, Title: ${lastWindow.title}, Duration: ${formatTime(timeSpent)}\n`;
+    if (window) {
+        const currentTabTitle = window.title;
+        const currentTabURL = await getCurrentTabURL(); 
 
-      logToFile(logFilePath, logEntry);
+        if (!lastWindow || window.id !== lastWindow.id) {
+            if (lastWindow) {
+                const timeSpent = currentTime - lastSwitchTime; 
+                const durationLogEntry = `User: ${username}, TimeStamp: ${new Date(lastSwitchTime).toLocaleString()}, Application: ${lastWindow.owner.name}, Title: ${lastWindow.title}, Duration: ${formatTime(timeSpent)}\n`;
+                logToFile(logFilePath, durationLogEntry);
+                
+                captureScreenshot(lastWindow.title);
+            }
+
+            lastWindow = window;
+            lastTabTitle = currentTabTitle; 
+            lastTabURL = currentTabURL; 
+            lastSwitchTime = currentTime; 
+        } 
+        else if (currentTabTitle !== lastTabTitle || currentTabURL !== lastTabURL) { 
+            const tabLogEntry = `User: ${username}, TimeStamp: ${timestamp}, Application: ${window.owner.name}, Switched to Tab: ${currentTabTitle}, URL: ${currentTabURL}\n`;
+            logToFile(logFilePath, tabLogEntry);
+
+            captureScreenshot(currentTabTitle);
+
+            lastTabTitle = currentTabTitle;
+            lastTabURL = currentTabURL; 
+            lastSwitchTime = currentTime; 
+        }
     }
-
-    // Update last window and switch time
-    lastWindow = window;
-    lastSwitchTime = currentTime;
-    isInactive = false; // Reset inactivity flag on window change
-  }
 };
 
+const getCurrentTabURL = async () => {
+    let url = '';
+    try {
+        const browser = await puppeteer.connect({ 
+            browserURL: 'http://localhost:9222' 
+        });
+        const pages = await browser.pages(); 
+        const activePage = pages.find(page => page.isVisible()); 
 
-module.exports = {logUserActivity};
+        if (activePage) {
+            url = await activePage.url(); 
+        }
+
+        await browser.disconnect(); 
+    } catch (error) {
+        console.error('Error fetching current tab URL:', error);
+    }
+    return url; 
+};
+
+const captureScreenshot = (context) => {
+    const timestamp = new Date().toISOString().replace(/:/g, '-'); 
+    const screenshotPath = path.join(screenshotDir, `${context}_${timestamp}.png`);
+    
+    screenshot({ filename: screenshotPath })
+        .then(() => {
+            console.log('Screenshot saved:', screenshotPath);
+        })
+        .catch((error) => {
+            console.error('Error capturing screenshot:', error);
+        });
+};
+
+module.exports = { logUserActivity };

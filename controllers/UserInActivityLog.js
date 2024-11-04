@@ -6,7 +6,7 @@ const os = require('os');
 
 
 const inactivityLogFilePath = path.resolve(__dirname, '../', process.env.INACTIVITY_LOG_FILE_PATH);
-const inactivityDuration = 51000; // 5 minute
+const inactivityDuration = 5000; // 5 minute
 
 let lastMouseMoveTime = Date.now(); // Track the last mouse move time
 let lastKeyPressTime = Date.now();  // Track the last key press time
