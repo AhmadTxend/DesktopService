@@ -12,11 +12,16 @@
   "dependencies": {
     "active-win": "^8.2.1",
     "axios": "^1.7.7",
+    "chromedriver": "^130.0.2",
     "dotenv": "^16.4.5",
+    "electron": "^33.0.2",
+    "express": "^4.21.1",
     "node-keylogger": "^0.0.1",
+    "node-screenshots": "^0.2.1",
     "node-windows": "^1.0.0-beta.8",
-    "puppeteer": "^23.6.1",
+    "ps-list": "^8.1.1",
     "screenshot-desktop": "^1.15.0",
+    "selenium-webdriver": "^4.26.0",
     "uiohook-napi": "^1.5.4"
   }
 }
